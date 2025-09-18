@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini Assistant Visa France</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  h1 { color: #0055A4; }
+  select, button { margin: 5px 0; padding: 5px; font-size: 1rem; }
+  #resultat { margin-top: 15px; font-weight: bold; }
+  a { color: #0055A4; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<h1>Mini Assistant Visa France</h1>
+
+<label for="pays">Sélectionnez votre pays :</label><br>
+<select id="pays">
+  <option value="">--Choisissez un pays--</option>
+</select><br>
+
+<label for="duree">Type de séjour :</label><br>
+<select id="duree">
+  <option value="court">Courte durée (&lt;90 jours)</option>
+  <option value="long">Longue durée (&gt;90 jours)</option>
+</select><br>
+
+<button onclick="verifierVisa()">Vérifier</button>
+
+<p id="resultat"></p>
+
+<script>
+// Données simplifiées mais proches de la réalité officielle
+const visaData = {
+  court: {
+    "États-Unis": false, "Canada": false, "Japon": false, "Corée du Sud": false,
+    "Australie": false, "Nouvelle-Zélande": false, "Argentine": false, "Brésil": false,
+    "Chili": false, "Colombie": false, "Mexique": false, "Uruguay": false,
+    "Albanie": false, "Bosnie-Herzégovine": false, "Kosovo": false, "Monténégro": false,
+    "Macédoine du Nord": false, "Serbie": false, "Seychelles": false, "Maurice": false,
+    "Chine": true, "Inde": true, "Pakistan": true, "Bangladesh": true,
+    "Sri Lanka": true, "Népal": true, "Algérie": true, "Maroc": true,
+    "Tunisie": true, "Égypte": true, "Nigéria": true, "Ghana": true,
+    "Sénégal": true, "Turquie": true, "Iran": true, "Irak": true,
+    "Syrie": true, "Liban": true, "Israël": true, "Cuba": true,
+    "Haïti": true, "Venezuela": true
+  },
+  long: {} // Tous les pays hors UE nécessitent un visa long séjour
+};
+
+// Générer long séjour automatiquement
+for (let pays in visaData.court) {
+  visaData.long[pays] = true;
+}
+
+// Ajouter tous les pays de l'UE/EEE (exemption pour court séjour)
+const uePays = ["France","Allemagne","Italie","Espagne","Portugal","Belgique","Pays-Bas",
+                "Luxembourg","Autriche","Suède","Finlande","Danemark","Irlande","Grèce",
+                "Estonie","Lettonie","Lituanie","Pologne","République tchèque","Slovaquie",
+                "Hongrie","Slovénie","Chypre","Malte","Roumanie","Bulgarie"];
+uePays.forEach(p => {
+  visaData.court[p] = false; 
+  visaData.long[p] = false;
+});
+
+// Remplir le menu déroulant
+const selectPays = document.getElementById('pays');
+const tousPays = Object.keys(visaData.court).sort();
+tousPays.forEach(p => {
+  const option = document.createElement('option');
+  option.value = p;
+  option.textContent = p;
+  selectPays.appendChild(option);
+});
+
+function verifierVisa() {
+  const pays = document.getElementById('pays').value;
+  const duree = document.getElementById('duree').value;
+  const resultat = document.getElementById('resultat');
+
+  if (!pays) {
+    resultat.textContent = "Veuillez sélectionner un pays.";
+    return;
+  }
+
+  if (visaData[duree][pays]) {
+    resultat.innerHTML = `Visa requis pour ce séjour. Pour plus d'infos : <a href="https://france-visas.gouv.fr/" target="_blank">France-Visas</a>`;
+  } else {
+    resultat.innerHTML = `Pas de visa requis pour ce séjour. Pour confirmation : <a href="https://france-visas.gouv.fr/" target="_blank">France-Visas</a>`;
+  }
+}
+</script>
+</body>
+</html>
