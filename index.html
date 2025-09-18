@@ -10,11 +10,13 @@
     form { background: white; padding: 20px; border-radius: 5px; max-width: 600px; margin: auto; }
     label { display: block; margin-top: 10px; }
     input, select { width: 100%; padding: 8px; margin-top: 5px; }
-    button { margin-top: 20px; padding: 10px 20px; background-color: #004080; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    button { margin-top: 10px; padding: 8px 15px; background-color: #004080; color: white; border: none; border-radius: 5px; cursor: pointer; }
     button:hover { background-color: #0066cc; }
     .fiche { background: white; padding: 10px; border-radius: 5px; margin-top: 10px; }
     .date-naissance { display: flex; gap: 5px; }
     .date-naissance input { flex: 1; }
+    .btn-danger { background-color: #cc0000; }
+    .btn-danger:hover { background-color: #ff3333; }
 </style>
 </head>
 <body>
@@ -23,8 +25,8 @@
 
 <form id="ficheForm">
     <h2>Identité</h2>
-    <label>Nom<input type="text" id="nom" required></label>
-    <label>Prénom<input type="text" id="prenom" required></label>
+    <label>Nom<input type="text" id="nom" autocomplete="off" required></label>
+    <label>Prénom<input type="text" id="prenom" autocomplete="off" required></label>
     <label>Sexe
         <select id="sexe">
             <option value="">--Sélectionner--</option>
@@ -33,7 +35,7 @@
             <option value="Autre">Autre</option>
         </select>
     </label>
-    <label>Nationalité<input type="text" id="nationalite"></label>
+    <label>Nationalité<input type="text" id="nationalite" autocomplete="off"></label>
     
     <label>Date de naissance :</label>
     <div class="date-naissance">
@@ -44,30 +46,40 @@
     <label>Âge<input type="number" id="age" readonly></label>
 
     <h2>Voyage</h2>
-    <label>Ville de départ<input type="text" id="villeDepart"></label>
-    <label>Pays de départ<input type="text" id="paysDepart"></label>
-    <label>Ville de destination<input type="text" id="villeDestination"></label>
-    <label>Pays de destination<input type="text" id="paysDestination"></label>
+    <label>Ville de départ<input type="text" id="villeDepart" autocomplete="off"></label>
+    <label>Pays de départ<input type="text" id="paysDepart" autocomplete="off"></label>
+    <label>Ville de destination<input type="text" id="villeDestination" autocomplete="off"></label>
+    <label>Pays de destination<input type="text" id="paysDestination" autocomplete="off"></label>
 
     <h2>Intervention</h2>
     <label>Heure et Date<input type="text" id="heureDate" readonly></label>
-    <label>Lieu d'interpellation<input type="text" id="lieuInterpellation"></label>
+    <label>Lieu d'interpellation<input type="text" id="lieuInterpellation" autocomplete="off"></label>
 
     <h2>Véhicule</h2>
-    <label>Type de véhicule<input type="text" id="vehicule"></label>
-    <label>Immatriculation<input type="text" id="immatriculation"></label>
+    <label>Type de véhicule<input type="text" id="vehicule" autocomplete="off"></label>
+    <label>Immatriculation<input type="text" id="immatriculation" autocomplete="off"></label>
+
+    <h2>Pièces d'identité présentées</h2>
+    <div id="piecesIdentite">
+        <label><input type="checkbox" name="piece" value="Passeport valide"> Passeport valide</label>
+        <label><input type="checkbox" name="piece" value="Passeport périmé"> Passeport périmé</label>
+        <label><input type="checkbox" name="piece" value="Fiche de demande d'asile valide"> Fiche de demande d'asile valide</label>
+        <label><input type="checkbox" name="piece" value="Fiche de demande d'asile périmée"> Fiche de demande d'asile périmée</label>
+        <label><input type="checkbox" name="piece" value="Carte d'identité valide"> Carte d'identité valide</label>
+        <label><input type="checkbox" name="piece" value="Carte d'identité périmée"> Carte d'identité périmée</label>
+        <label><input type="checkbox" name="piece" value="Titre de séjour valide"> Titre de séjour valide</label>
+        <label><input type="checkbox" name="piece" value="Titre de séjour périmé"> Titre de séjour périmé</label>
+    </div>
 
     <button type="submit">Enregistrer la fiche</button>
 </form>
 
-
 <h2>Historique des fiches</h2>
 <div id="historique"></div>
-<button id="effacerFiches" style="background-color:#cc0000; margin-top:10px;">Effacer toutes les fiches</button>
-
+<button id="effacerFiches" class="btn-danger">Effacer toutes les fiches</button>
 
 <script>
-// Remplir automatiquement l'heure
+// Heure et date auto
 function setHeureDate() {
     const now = new Date();
     const h = now.getHours().toString().padStart(2,'0');
@@ -79,53 +91,39 @@ function setHeureDate() {
     document.getElementById('heureDate').value = `${h}:${m}:${s} - ${j}/${mois}/${a}`;
 }
 setHeureDate();
-setInterval(setHeureDate, 1000); // mise à jour toutes les secondes
+setInterval(setHeureDate, 1000);
 
-
-// Calculer l'âge automatiquement avec jour/mois/année
+// Calcul âge
 function calculerAge() {
     const jour = parseInt(document.getElementById("jour").value);
-    const mois = parseInt(document.getElementById("mois").value) - 1; // JS commence à 0
+    const mois = parseInt(document.getElementById("mois").value) - 1;
     const annee = parseInt(document.getElementById("annee").value);
-
     if (!jour || !mois || !annee) return;
-
     const today = new Date();
     const naissance = new Date(annee, mois, jour);
-
     let age = today.getFullYear() - naissance.getFullYear();
     const m = today.getMonth() - naissance.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < naissance.getDate())) {
-        age--;
-    }
+    if (m < 0 || (m === 0 && today.getDate() < naissance.getDate())) age--;
     document.getElementById("age").value = age;
 }
 
-// Ajouter écouteurs aux trois champs
-["jour","mois","annee"].forEach(id => {
-    document.getElementById(id).addEventListener("input", calculerAge);
-});
-
-// Afficher l'historique
-function afficherHistorique() {
-    const historiqueDiv = document.getElementById('historique');
-    historiqueDiv.innerHTML = '';
-    const fiches = JSON.parse(localStorage.getItem('fichesESI') || '[]');
-    fiches.forEach((fiche, index) => {
-        const div = document.createElement('div');
-        div.className = 'fiche';
-        div.innerHTML = `<strong>Fiche #${index+1}</strong><br>
-                         Nom: ${fiche.nom} ${fiche.prenom} | Sexe: ${fiche.sexe} | Nationalité: ${fiche.nationalite} | Âge: ${fiche.age}<br>
-                         Départ: ${fiche.villeDepart}, ${fiche.paysDepart} | Destination: ${fiche.villeDestination}, ${fiche.paysDestination}<br>
-                         Heure: ${fiche.heure} | Lieu: ${fiche.lieuInterpellation}<br>
-                         Véhicule: ${fiche.vehicule} | Immatriculation: ${fiche.immatriculation}`;
-        historiqueDiv.appendChild(div);
+// Auto passage aux champs suivants
+function autoNext(input, nextInputId, maxLength) {
+    input.addEventListener('input', function() {
+        if (this.value.length >= maxLength) {
+            document.getElementById(nextInputId).focus();
+        }
+        calculerAge();
     });
 }
+autoNext(document.getElementById('jour'), 'mois', 2);
+autoNext(document.getElementById('mois'), 'annee', 2);
+document.getElementById('annee').addEventListener('input', calculerAge);
 
-// Enregistrer la fiche
+// Enregistrement fiche
 document.getElementById('ficheForm').addEventListener('submit', function(e){
     e.preventDefault();
+    const pieces = Array.from(document.querySelectorAll('input[name="piece"]:checked')).map(cb => cb.value);
     const fiche = {
         nom: document.getElementById('nom').value,
         prenom: document.getElementById('prenom').value,
@@ -139,28 +137,94 @@ document.getElementById('ficheForm').addEventListener('submit', function(e){
         paysDepart: document.getElementById('paysDepart').value,
         villeDestination: document.getElementById('villeDestination').value,
         paysDestination: document.getElementById('paysDestination').value,
-        heure: document.getElementById('heureDate').value,
+        heureDate: document.getElementById('heureDate').value,
         lieuInterpellation: document.getElementById('lieuInterpellation').value,
         vehicule: document.getElementById('vehicule').value,
-        immatriculation: document.getElementById('immatriculation').value
+        immatriculation: document.getElementById('immatriculation').value,
+        piecesIdentite: pieces
     };
     const fiches = JSON.parse(localStorage.getItem('fichesESI') || '[]');
     fiches.push(fiche);
     localStorage.setItem('fichesESI', JSON.stringify(fiches));
     this.reset();
-    setHeure();
+    setHeureDate();
     afficherHistorique();
 });
+
+// Affichage historique
+function afficherHistorique() {
+    const historiqueDiv = document.getElementById('historique');
+    historiqueDiv.innerHTML = '';
+    const fiches = JSON.parse(localStorage.getItem('fichesESI') || '[]');
+    fiches.forEach((fiche, index) => {
+        const ficheDiv = document.createElement('div');
+        ficheDiv.className = 'fiche';
+        ficheDiv.innerHTML = `
+            <strong>Fiche #${index+1}</strong><br>
+            Nom: ${fiche.nom} ${fiche.prenom} | Sexe: ${fiche.sexe} | Nationalité: ${fiche.nationalite} | Âge: ${fiche.age}<br>
+            Départ: ${fiche.villeDepart}, ${fiche.paysDepart} | Destination: ${fiche.villeDestination}, ${fiche.paysDestination}<br>
+            Heure et Date: ${fiche.heureDate} | Lieu: ${fiche.lieuInterpellation}<br>
+            Véhicule: ${fiche.vehicule} | Immatriculation: ${fiche.immatriculation}<br>
+            Pièces d'identité: ${fiche.piecesIdentite.join(", ")}<br>
+            <button onclick="modifierFiche(${index})">Modifier</button>
+            <button onclick="supprimerFiche(${index})" class="btn-danger">Supprimer</button>
+        `;
+        historiqueDiv.appendChild(ficheDiv);
+    });
+}
+
+// Supprimer fiche individuelle
+function supprimerFiche(index) {
+    if (confirm("Voulez-vous vraiment supprimer cette fiche ?")) {
+        const fiches = JSON.parse(localStorage.getItem('fichesESI') || '[]');
+        fiches.splice(index, 1);
+        localStorage.setItem('fichesESI', JSON.stringify(fiches));
+        afficherHistorique();
+    }
+}
+
+// Modifier fiche
+function modifierFiche(index) {
+    const fiches = JSON.parse(localStorage.getItem('fichesESI') || '[]');
+    const fiche = fiches[index];
+
+    document.getElementById('nom').value = fiche.nom;
+    document.getElementById('prenom').value = fiche.prenom;
+    document.getElementById('sexe').value = fiche.sexe;
+    document.getElementById('nationalite').value = fiche.nationalite;
+    document.getElementById('jour').value = fiche.jour;
+    document.getElementById('mois').value = fiche.mois;
+    document.getElementById('annee').value = fiche.annee;
+    document.getElementById('age').value = fiche.age;
+    document.getElementById('villeDepart').value = fiche.villeDepart;
+    document.getElementById('paysDepart').value = fiche.paysDepart;
+    document.getElementById('villeDestination').value = fiche.villeDestination;
+    document.getElementById('paysDestination').value = fiche.paysDestination;
+    document.getElementById('lieuInterpellation').value = fiche.lieuInterpellation;
+    document.getElementById('vehicule').value = fiche.vehicule;
+    document.getElementById('immatriculation').value = fiche.immatriculation;
+
+    document.querySelectorAll('input[name="piece"]').forEach(cb => cb.checked = false);
+    fiche.piecesIdentite.forEach(val => {
+        const cb = Array.from(document.querySelectorAll('input[name="piece"]')).find(c => c.value === val);
+        if (cb) cb.checked = true;
+    });
+
+    fiches.splice(index, 1);
+    localStorage.setItem('fichesESI', JSON.stringify(fiches));
+    afficherHistorique();
+}
+
+// Effacer toutes les fiches
 document.getElementById('effacerFiches').addEventListener('click', function() {
     if (confirm("Voulez-vous vraiment effacer toutes les fiches ?")) {
-        localStorage.removeItem('fichesESI'); // Supprime les fiches du localStorage
-        afficherHistorique(); // Met à jour l'affichage
+        localStorage.removeItem('fichesESI');
+        afficherHistorique();
         alert("Toutes les fiches ont été effacées !");
     }
 });
 
-
-// Afficher historique au chargement
+// Affichage initial
 afficherHistorique();
 </script>
 
