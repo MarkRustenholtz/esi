@@ -50,7 +50,7 @@
     <label>Pays de destination<input type="text" id="paysDestination"></label>
 
     <h2>Intervention</h2>
-    <label>Heure<input type="text" id="heure" readonly></label>
+    <label>Heure et Date<input type="text" id="heureDate" readonly></label>
     <label>Lieu d'interpellation<input type="text" id="lieuInterpellation"></label>
 
     <h2>Véhicule</h2>
@@ -60,20 +60,27 @@
     <button type="submit">Enregistrer la fiche</button>
 </form>
 
+
 <h2>Historique des fiches</h2>
 <div id="historique"></div>
+<button id="effacerFiches" style="background-color:#cc0000; margin-top:10px;">Effacer toutes les fiches</button>
+
 
 <script>
 // Remplir automatiquement l'heure
-function setHeure() {
+function setHeureDate() {
     const now = new Date();
     const h = now.getHours().toString().padStart(2,'0');
     const m = now.getMinutes().toString().padStart(2,'0');
     const s = now.getSeconds().toString().padStart(2,'0');
-    document.getElementById('heure').value = `${h}:${m}:${s}`;
+    const j = now.getDate().toString().padStart(2,'0');
+    const mois = (now.getMonth()+1).toString().padStart(2,'0');
+    const a = now.getFullYear();
+    document.getElementById('heureDate').value = `${h}:${m}:${s} - ${j}/${mois}/${a}`;
 }
-setHeure();
-setInterval(setHeure, 1000);
+setHeureDate();
+setInterval(setHeureDate, 1000); // mise à jour toutes les secondes
+
 
 // Calculer l'âge automatiquement avec jour/mois/année
 function calculerAge() {
@@ -132,7 +139,7 @@ document.getElementById('ficheForm').addEventListener('submit', function(e){
         paysDepart: document.getElementById('paysDepart').value,
         villeDestination: document.getElementById('villeDestination').value,
         paysDestination: document.getElementById('paysDestination').value,
-        heure: document.getElementById('heure').value,
+        heure: document.getElementById('heureDate').value,
         lieuInterpellation: document.getElementById('lieuInterpellation').value,
         vehicule: document.getElementById('vehicule').value,
         immatriculation: document.getElementById('immatriculation').value
@@ -144,6 +151,14 @@ document.getElementById('ficheForm').addEventListener('submit', function(e){
     setHeure();
     afficherHistorique();
 });
+document.getElementById('effacerFiches').addEventListener('click', function() {
+    if (confirm("Voulez-vous vraiment effacer toutes les fiches ?")) {
+        localStorage.removeItem('fichesESI'); // Supprime les fiches du localStorage
+        afficherHistorique(); // Met à jour l'affichage
+        alert("Toutes les fiches ont été effacées !");
+    }
+});
+
 
 // Afficher historique au chargement
 afficherHistorique();
