@@ -130,7 +130,9 @@ function autoNext(input, nextInputId, maxLength) {
 autoNext(document.getElementById('jour'), 'mois', 2);
 autoNext(document.getElementById('mois'), 'annee', 2);
 document.getElementById('annee').addEventListener('input', calculerAge);
-
+document.getElementById('immatriculation').addEventListener('input', function() {
+    this.value = this.value.toUpperCase();
+	});
 // Enregistrement fiche
 document.getElementById('ficheForm').addEventListener('submit', function(e){
     e.preventDefault();
