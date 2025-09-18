@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fiche ESI</title>
+<style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+    h2 { background-color: #004080; color: white; padding: 10px; border-radius: 5px; }
+    form { background: white; padding: 20px; border-radius: 5px; max-width: 600px; margin: auto; }
+    label { display: block; margin-top: 10px; }
+    input, select { width: 100%; padding: 8px; margin-top: 5px; }
+    button { margin-top: 20px; padding: 10px 20px; background-color: #004080; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    button:hover { background-color: #0066cc; }
+    .fiche { background: white; padding: 10px; border-radius: 5px; margin-top: 10px; }
+    .date-naissance { display: flex; gap: 5px; }
+    .date-naissance input { flex: 1; }
+</style>
+</head>
+<body>
+
+<h1>Application Fiche ESI</h1>
+
+<form id="ficheForm">
+    <h2>Identité</h2>
+    <label>Nom<input type="text" id="nom" required></label>
+    <label>Prénom<input type="text" id="prenom" required></label>
+    <label>Sexe
+        <select id="sexe">
+            <option value="">--Sélectionner--</option>
+            <option value="Masculin">Masculin</option>
+            <option value="Féminin">Féminin</option>
+            <option value="Autre">Autre</option>
+        </select>
+    </label>
+    <label>Nationalité<input type="text" id="nationalite"></label>
+    
+    <label>Date de naissance :</label>
+    <div class="date-naissance">
+        <input type="number" id="jour" placeholder="JJ" min="1" max="31" required>
+        <input type="number" id="mois" placeholder="MM" min="1" max="12" required>
+        <input type="number" id="annee" placeholder="AAAA" min="1900" max="2100" required>
+    </div>
+    <label>Âge<input type="number" id="age" readonly></label>
+
+    <h2>Voyage</h2>
+    <label>Ville de départ<input type="text" id="villeDepart"></label>
+    <label>Pays de départ<input type="text" id="paysDepart"></label>
+    <label>Ville de destination<input type="text" id="villeDestination"></label>
+    <label>Pays de destination<input type="text" id="paysDestination"></label>
+
+    <h2>Intervention</h2>
+    <label>Heure<input type="text" id="heure" readonly></label>
+    <label>Lieu d'interpellation<input type="text" id="lieuInterpellation"></label>
+
+    <h2>Véhicule</h2>
+    <label>Type de véhicule<input type="text" id="vehicule"></label>
+    <label>Immatriculation<input type="text" id="immatriculation"></label>
+
+    <button type="submit">Enregistrer la fiche</button>
+</form>
+
+<h2>Historique des fiches</h2>
+<div id="historique"></div>
+
+<script>
+// Remplir automatiquement l'heure
+function setHeure() {
+    const now = new Date();
+    const h = now.getHours().toString().padStart(2,'0');
+    const m = now.getMinutes().toString().padStart(2,'0');
+    const s = now.getSeconds().toString().padStart(2,'0');
+    document.getElementById('heure').value = `${h}:${m}:${s}`;
+}
+setHeure();
+setInterval(setHeure, 1000);
+
+// Calculer l'âge automatiquement avec jour/mois/année
+function calculerAge() {
+    const jour = parseInt(document.getElementById("jour").value);
+    const mois = parseInt(document.getElementById("mois").value) - 1; // JS commence à 0
+    const annee = parseInt(document.getElementById("annee").value);
+
+    if (!jour || !mois || !annee) return;
+
+    const today = new Date();
+    const naissance = new Date(annee, mois, jour);
+
+    let age = today.getFullYear() - naissance.getFullYear();
+    const m = today.getMonth() - naissance.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < naissance.getDate())) {
+        age--;
+    }
+    document.getElementById("age").value = age;
+}
+
+// Ajouter écouteurs aux trois champs
+["jour","mois","annee"].forEach(id => {
+    document.getElementById(id).addEventListener("input", calculerAge);
+});
+
+// Afficher l'historique
+function afficherHistorique() {
+    const historiqueDiv = document.getElementById('historique');
+    historiqueDiv.innerHTML = '';
+    const fiches = JSON.parse(localStorage.getItem('fichesESI') || '[]');
+    fiches.forEach((fiche, index) => {
+        const div = document.createElement('div');
+        div.className = 'fiche';
+        div.innerHTML = `<strong>Fiche #${index+1}</strong><br>
+                         Nom: ${fiche.nom} ${fiche.prenom} | Sexe: ${fiche.sexe} | Nationalité: ${fiche.nationalite} | Âge: ${fiche.age}<br>
+                         Départ: ${fiche.villeDepart}, ${fiche.paysDepart} | Destination: ${fiche.villeDestination}, ${fiche.paysDestination}<br>
+                         Heure: ${fiche.heure} | Lieu: ${fiche.lieuInterpellation}<br>
+                         Véhicule: ${fiche.vehicule} | Immatriculation: ${fiche.immatriculation}`;
+        historiqueDiv.appendChild(div);
+    });
+}
+
+// Enregistrer la fiche
+document.getElementById('ficheForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const fiche = {
+        nom: document.getElementById('nom').value,
+        prenom: document.getElementById('prenom').value,
+        sexe: document.getElementById('sexe').value,
+        nationalite: document.getElementById('nationalite').value,
+        jour: document.getElementById('jour').value,
+        mois: document.getElementById('mois').value,
+        annee: document.getElementById('annee').value,
+        age: document.getElementById('age').value,
+        villeDepart: document.getElementById('villeDepart').value,
+        paysDepart: document.getElementById('paysDepart').value,
+        villeDestination: document.getElementById('villeDestination').value,
+        paysDestination: document.getElementById('paysDestination').value,
+        heure: document.getElementById('heure').value,
+        lieuInterpellation: document.getElementById('lieuInterpellation').value,
+        vehicule: document.getElementById('vehicule').value,
+        immatriculation: document.getElementById('immatriculation').value
+    };
+    const fiches = JSON.parse(localStorage.getItem('fichesESI') || '[]');
+    fiches.push(fiche);
+    localStorage.setItem('fichesESI', JSON.stringify(fiches));
+    this.reset();
+    setHeure();
+    afficherHistorique();
+});
+
+// Afficher historique au chargement
+afficherHistorique();
+</script>
+
+</body>
+</html>
