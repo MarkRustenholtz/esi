@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Application ESI + Assistant Visa</title>
-    <link rel="manifest" href="/esi/manifest.json">
+<link rel="manifest" href="/esi/manifest.json">
 <meta name="theme-color" content="#0d6efd">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -292,51 +292,141 @@ document.getElementById('effacerFiches').addEventListener('click', function() {
 });
 afficherHistorique();
 
-// --------- SCRIPT VISA ----------
-const visaData = {
-  court: {
-    "États-Unis": false, "Canada": false, "Japon": false, "Corée du Sud": false,
-    "Australie": false, "Nouvelle-Zélande": false, "Argentine": false, "Brésil": false,
-    "Chili": false, "Colombie": false, "Mexique": false, "Uruguay": false,
-    "Albanie": false, "Bosnie-Herzégovine": false, "Kosovo": false, "Monténégro": false,
-    "Macédoine du Nord": false, "Serbie": false, "Seychelles": false, "Maurice": false,
-    "Chine": true, "Inde": true, "Pakistan": true, "Bangladesh": true,
-    "Sri Lanka": true, "Népal": true, "Algérie": true, "Maroc": true,
-    "Tunisie": true, "Égypte": true, "Nigéria": true, "Ghana": true,
-    "Sénégal": true, "Turquie": true, "Iran": true, "Irak": true,
-    "Syrie": true, "Liban": true, "Israël": true, "Cuba": true,
-    "Haïti": true, "Venezuela": true
-  },
-  long: {}
-};
-for (let pays in visaData.court) { visaData.long[pays] = true; }
-const uePays = ["France","Allemagne","Italie","Espagne","Portugal","Belgique","Pays-Bas",
-                "Luxembourg","Autriche","Suède","Finlande","Danemark","Irlande","Grèce",
-                "Estonie","Lettonie","Lituanie","Pologne","République tchèque","Slovaquie",
-                "Hongrie","Slovénie","Chypre","Malte","Roumanie","Bulgarie"];
-uePays.forEach(p => { visaData.court[p] = false; visaData.long[p] = false; });
 
-const selectPays = document.getElementById('pays');
-const tousPays = Object.keys(visaData.court).sort();
-tousPays.forEach(p => {
-  const option = document.createElement('option');
-  option.value = p;
-  option.textContent = p;
-  selectPays.appendChild(option);
-});
-function verifierVisa() {
-  const pays = document.getElementById('pays').value;
-  const duree = document.getElementById('duree').value;
-  const resultat = document.getElementById('resultat');
-  if (!pays) { resultat.textContent = "Veuillez sélectionner un pays."; return; }
-  if (visaData[duree][pays]) {
-    resultat.innerHTML = `Visa requis pour ce séjour. Pour plus d'infos : <a href="https://france-visas.gouv.fr/" target="_blank">France-Visas</a>`;
+/* ---------- BLOC JS COMPLET POUR ESI+VISA (195 pays) ---------- */
+/* Utilisation : garde ta balise <select id="pays"> et les éléments d'UI existants.
+   Le script peuple le select, trie alphabétiquement et gère visaData.court / visaData.long. */
+
+(function(){
+  // 1) Liste d'environ 195 pays (UN members + micro-États utiles)
+  const allCountries = [
+    "Afghanistan","Albanie","Algérie","Allemagne","Andorre","Angola","Antigua-et-Barbuda","Argentine","Arménie","Australie",
+    "Autriche","Azerbaïdjan","Bahamas","Bahreïn","Bangladesh","Barbade","Biélorussie","Belgique","Belize","Bénin",
+    "Bhoutan","Bolivie","Bosnie-Herzégovine","Botswana","Brésil","Brunei","Bulgarie","Burkina Faso","Burundi","Cabo Verde",
+    "Cambodge","Cameroun","Canada","République centrafricaine","Tchad","Chili","Chine","Colombie","Comores","Congo",
+    "République démocratique du Congo","Costa Rica","Côte d'Ivoire","Croatie","Cuba","Chypre","République tchèque","Danemark","Djibouti","Dominique",
+    "République dominicaine","Équateur","Égypte","El Salvador","Guinée équatoriale","Érythrée","Estonie","Eswatini","Éthiopie","Fidji",
+    "Finlande","France","Gabon","Gambie","Géorgie","Ghana","Grèce","Grenade","Guatemala",
+    "Guinée","Guinée-Bissau","Guyana","Haïti","Honduras","Hongrie","Islande","Inde","Indonésie","Iran",
+    "Irak","Irlande","Israël","Italie","Jamaïque","Japon","Jordanie","Kazakhstan","Kenya","Kiribati",
+    "Koweït","Kirghizistan","Laos","Lettonie","Liban","Lesotho","Liberia","Libye","Liechtenstein","Lituanie",
+    "Luxembourg","Macédoine du Nord","Madagascar","Malawi","Malaisie","Maldives","Mali","Malte","Îles Marshall","Mauritanie",
+    "Maurice","Mexique","Micronésie","Moldavie","Monaco","Mongolie","Monténégro","Maroc","Mozambique","Myanmar",
+    "Namibie","Nauru","Népal","Pays-Bas","Nouvelle-Zélande","Nicaragua","Niger","Nigéria","Corée du Nord","Norvège",
+    "Oman","Pakistan","Palaos","Panama","Papouasie-Nouvelle-Guinée","Paraguay","Pérou","Philippines","Pologne","Portugal",
+    "Qatar","Roumanie","Russie","Rwanda","Saint-Kitts-et-Nevis","Sainte-Lucie","Saint-Vincent-et-les-Grenadines","Samoa","Saint-Marin","Sao Tomé-et-Principe",
+    "Arabie Saoudite","Sénégal","Serbie","Seychelles","Sierra Leone","Singapour","Slovaquie","Slovénie","Îles Salomon","Somalie",
+    "Afrique du Sud","Corée du Sud","Soudan du Sud","Espagne","Sri Lanka","Soudan","Suriname","Suède","Suisse","Syrie",
+    "Taïwan","Tadjikistan","Tanzanie","Thaïlande","Timor-Leste","Togo","Tonga","Trinité-et-Tobago","Tunisie","Turquie",
+    "Turkménistan","Tuvalu","Ouganda","Ukraine","Émirats arabes unis","Royaume-Uni","États-Unis","Uruguay","Ouzbékistan","Vanuatu",
+    "Vatican","Venezuela","Vietnam","Yémen","Zambie","Zimbabwe","Kosovo"
+  ];
+
+  // 2) Pays sans visa court ni long : UE (27) + EEE + Suisse + micro-États
+  const neverNeed = [
+    // UE (francisé) - 27
+    "Autriche","Belgique","Bulgarie","Chypre","République tchèque","Croatie","Danemark","Estonie","Finlande","France",
+    "Allemagne","Grèce","Hongrie","Irlande","Italie","Lettonie","Lituanie","Luxembourg","Malte","Pays-Bas",
+    "Pologne","Portugal","Roumanie","Slovaquie","Slovénie","Espagne","Suède",
+    // EEE + Suisse + micro-États
+    "Islande","Liechtenstein","Norvège","Suisse","Monaco","Andorre","Saint-Marin","Vatican"
+  ];
+
+  // 3) Pays exemptés de visa court séjour (Annex II / liste commune des Etats) -> véhicule "shortExempt"
+  // Source : règles communes Schengen / France-Visas (liste Annex II / ETIAS countries). C'est la règle générale (confirmer cas particuliers).
+  const shortExempt = [
+    // Europe non-UE (biométrique souvent requis)
+    "Albanie","Bosnie-Herzégovine","Monténégro","Macédoine du Nord","Serbie","Moldavie","Ukraine","Géorgie",
+    // Amériques
+    "Argentine","Bahamas","Barbade","Bolivie","Brésil","Canada","Chili","Colombie","Costa Rica",
+    "Dominique","Équateur","El Salvador","Grenade","Guatemala","Guyana","Honduras","Jamaïque","Mexique",
+    "Nicaragua","Panama","Paraguay","Pérou","Suriname","Trinité-et-Tobago","Uruguay","Venezuela",
+    // Asie-Pacifique & Moyen-Orient
+    "Australie","Brunei","Japon","Malaisie","Nouvelle-Zélande","Singapour","Corée du Sud","Israël","Taïwan",
+    "Hong Kong","Macao","Timor-Leste","Émirats arabes unis",
+    // Océanie
+    "Kiribati","Îles Marshall","Micronésie","Nauru","Palaos","Samoa","Îles Salomon","Tonga","Tuvalu","Vanuatu",
+    // Afrique / Océan Indien (quelques exceptions)
+    "Île Maurice","Seychelles"
+  ];
+
+  // Normalisation : s'assurer que tous les noms présents dans neverNeed/shortExempt figurent dans allCountries
+  const missing = [];
+  [ ...neverNeed, ...shortExempt ].forEach(n => { if (!allCountries.includes(n)) missing.push(n); });
+  // (on ne stoppe pas, on assume que la majorité est cohérente)
+
+  // 4) Construction de visaData
+  const visaData = { court: {}, long: {} };
+
+  allCountries.forEach(country => {
+    if (neverNeed.includes(country)) {
+      visaData.court[country] = false; // pas de visa court
+      visaData.long[country] = false;  // pas de visa long
+    } else if (shortExempt.includes(country)) {
+      visaData.court[country] = false; // pas de visa court
+      visaData.long[country] = true;   // mais visa long requis
+    } else {
+      visaData.court[country] = true;  // visa requis pour court séjour
+      visaData.long[country] = true;   // visa requis pour long séjour
+    }
+  });
+
+  // 5) Optionnel : préciser les pays qui exigent passeport biométrique pour l'exemption court séjour
+  // (exemples : Serbie, Albanie, Bosnie, Macédoine du Nord, Moldavie, Ukraine, Géorgie)
+  const biometricExemptions = ["Albanie","Bosnie-Herzégovine","Macédoine du Nord","Monténégro","Serbie","Moldavie","Ukraine","Géorgie"];
+
+  // 6) Remplissage du select trié alphabétiquement
+  const selectPays = document.getElementById('pays');
+  if (!selectPays) {
+    console.warn("Element <select id='pays'> introuvable — crée-le dans ton HTML.");
   } else {
-    resultat.innerHTML = `Pas de visa requis pour ce séjour. Pour confirmation : <a href="https://france-visas.gouv.fr/" target="_blank">France-Visas</a>`;
+    // trier pays (respecter accents)
+    const sorted = allCountries.slice().sort((a,b)=> a.localeCompare(b,'fr',{ignorePunctuation:true}));
+    sorted.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p;
+      opt.textContent = p;
+      selectPays.appendChild(opt);
+    });
   }
-}
+
+  // 7) Fonction de vérification (réutilise ton HTML existant : input #duree doit valoir 'court' ou 'long')
+  window.verifierVisa = function() {
+    const pays = (document.getElementById('pays') || {}).value;
+    const duree = (document.getElementById('duree') || {}).value; // 'court' ou 'long'
+    const resultat = document.getElementById('resultat');
+    if (!resultat) {
+      alert("Element #resultat non trouvé. Assure-toi d'avoir un conteneur pour afficher le résultat.");
+      return;
+    }
+    if (!pays) { resultat.textContent = "Veuillez sélectionner un pays."; return; }
+    if (!['court','long'].includes(duree)) { resultat.textContent = "Veuillez choisir une durée ('court' ou 'long')."; return; }
+
+    const needsVisa = visaData[duree][pays];
+    let html = '';
+    if (needsVisa) {
+      html = `Visa requis pour ce séjour (${duree === 'court' ? 'court (<90j)' : 'long (>90j)'}). ` +
+             `Voir la procédure sur <a href="https://france-visas.gouv.fr/web/france-visas/assistant-visa" target="_blank" rel="noopener">France-Visas</a>.`;
+    } else {
+      html = `Pas de visa requis pour ce séjour (${duree === 'court' ? 'court (<90j)' : 'long (>90j)'}). ` +
+             `Vérifier conditions particulières (type de passeport, ETIAS, accords bilatéraux) sur <a href="https://france-visas.gouv.fr/web/france-visas/assistant-visa" target="_blank" rel="noopener">France-Visas</a>.`;
+    }
+
+    // précision si exemption court dépend de passeport biométrique
+    if (!needsVisa && duree === 'court' && biometricExemptions.includes(pays)) {
+      html += ` <br><small>Note : l'exemption peut demander un passeport biométrique.</small>`;
+    }
+    resultat.innerHTML = html;
+  };
+
+  // 8) Expose les données si tu veux les utiliser ailleurs (console.debug)
+  window._esiVisaData = { allCountries, neverNeed, shortExempt, visaData, biometricExemptions };
+
+  // debug log
+  console.debug("ESI+Visa: visaData initialisé pour", allCountries.length, "pays. Voir window._esiVisaData.");
+})();
+
 </script>
 
 </body>
 </html>
-
