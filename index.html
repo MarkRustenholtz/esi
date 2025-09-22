@@ -38,6 +38,8 @@
     .fiche { background: white; padding: 10px; border-radius: 5px; margin-top: 10px; }
     .date-naissance { display: flex; gap: 5px; }
     .date-naissance input { flex: 1; }
+    .heure-date { display: flex; gap: 5px; }
+    .heure-date input { flex: 1; }
     #piecesIdentite {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -56,6 +58,45 @@
     #resultat { margin-top: 15px; font-weight: bold; }
     #visaApp a { color: #0055A4; text-decoration: none; }
     #visaApp a:hover { text-decoration: underline; }
+
+    /* Styles pour l'autocomplétion */
+    .autocomplete-container {
+        position: relative;
+        width: 100%;
+    }
+    #paysInput {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 16px;
+    }
+    #paysDropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ccc;
+        border-top: none;
+        border-radius: 0 0 4px 4px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+    }
+    .pays-option {
+        padding: 10px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+    }
+    .pays-option:hover, .pays-option.selected {
+        background-color: #0055A4;
+        color: white;
+    }
+    .pays-option:last-child {
+        border-bottom: none;
+    }
 </style>
 </head>
 <body>
@@ -63,7 +104,7 @@
 <h1>Application ESI & Assistant Visa France</h1>
 
 <nav>
-  <button onclick="showSection('esi')" id="btnEsi" class="active">Fiche ESI</button>
+  <button onclick="showSection('esi')" id="btnEsi" class="active">Fiche Identité</button>
   <button onclick="showSection('visa')" id="btnVisa">Assistant Visa France</button>
   <button onclick="window.open('https://markrustenholtz.github.io/borderforce/', '_blank')">
   App principal
@@ -73,6 +114,12 @@
 <!-- Section Fiche ESI -->
 <section id="esi" class="active">
   <form id="ficheForm">
+<label>Catégorie :
+  <select id="categorie">
+    <option value="ESI">ESI</option>
+    <option value="PASSEUR">PASSEUR</option>
+  </select>
+</label>
       <h2>Identité</h2>
       <label>Nom<input type="text" id="nom" autocomplete="off" required></label>
       <label>Prénom<input type="text" id="prenom" autocomplete="off" required></label>
@@ -94,15 +141,20 @@
       </div>
       <label>Âge<input type="number" id="age" readonly></label>
 
+     <h2>Intervention</h2>
+      <label>Heure et Date d'intervention :</label>
+      <div class="heure-date">
+          <input type="time" id="heure" required>
+          <input type="date" id="dateIntervention" required>
+      </div>
+      <label>Lieu d'interpellation<input type="text" id="lieuInterpellation" autocomplete="off"></label>
+<label>Suites données<input type="text" id="suitesDonnees" autocomplete="off"></label>
+
       <h2>Voyage</h2>
       <label>Ville de départ<input type="text" id="villeDepart" autocomplete="off"></label>
       <label>Pays de départ<input type="text" id="paysDepart" autocomplete="off"></label>
       <label>Ville de destination<input type="text" id="villeDestination" autocomplete="off"></label>
       <label>Pays de destination<input type="text" id="paysDestination" autocomplete="off"></label>
-
-      <h2>Intervention</h2>
-      <label>Heure et Date<input type="text" id="heureDate" readonly></label>
-      <label>Lieu d'interpellation<input type="text" id="lieuInterpellation" autocomplete="off"></label>
 
       <h2>Véhicule</h2>
       <label>Type de véhicule<input type="text" id="vehicule" autocomplete="off"></label>
@@ -118,7 +170,9 @@
           <label><input type="checkbox" name="piece" value="Carte d'identité périmée"> Carte d'identité périmée</label>
           <label><input type="checkbox" name="piece" value="Titre de séjour valide"> Titre de séjour valide</label>
           <label><input type="checkbox" name="piece" value="Titre de séjour périmé"> Titre de séjour périmé</label>
+          <label><input type="checkbox" id="autreCheck" name="piece" value=""> Autre :</label>
       </div>
+      <input type="text" id="autreTexte" placeholder="Précisez..." style="width: 100%; margin-top: 5px; padding: 8px;" disabled>
 
       <button type="submit">Enregistrer la fiche</button>
   </form>
@@ -132,10 +186,11 @@
 <section id="visa">
   <div id="visaApp">
     <h2>Mini Assistant Visa France</h2>
-    <label for="pays">Sélectionnez votre pays :</label><br>
-    <select id="pays">
-      <option value="">--Choisissez un pays--</option>
-    </select><br>
+    <label for="paysInput">Sélectionnez votre pays :</label><br>
+    <div class="autocomplete-container">
+      <input type="text" id="paysInput" placeholder="Tapez le nom du pays..." autocomplete="off">
+      <div id="paysDropdown"></div>
+    </div><br>
 
     <label for="duree">Type de séjour :</label><br>
     <select id="duree">
@@ -143,7 +198,6 @@
       <option value="long">Longue durée (&gt;90 jours)</option>
     </select><br>
 
-    <button onclick="verifierVisa()">Vérifier</button>
     <p id="resultat"></p>
   </div>
 </section>
@@ -158,24 +212,23 @@ function showSection(id) {
 }
 
 // --------- SCRIPT FICHE ESI ----------
-function setHeureDate() {
+function setCurrentDateTime() {
     const now = new Date();
-    const h = now.getHours().toString().padStart(2,'0');
-    const m = now.getMinutes().toString().padStart(2,'0');
-    const s = now.getSeconds().toString().padStart(2,'0');
-    const j = now.getDate().toString().padStart(2,'0');
-    const mois = (now.getMonth()+1).toString().padStart(2,'0');
-    const a = now.getFullYear();
-    document.getElementById('heureDate').value = `${h}:${m}:${s} - ${j}/${mois}/${a}`;
+    const timeString = now.toTimeString().slice(0, 5);
+    const dateString = now.toISOString().split('T')[0];
+    
+    document.getElementById('heure').value = timeString;
+    document.getElementById('dateIntervention').value = dateString;
 }
-setHeureDate();
-setInterval(setHeureDate, 1000);
+
+// Initialiser avec la date/heure actuelle
+setCurrentDateTime();
 
 function calculerAge() {
     const jour = parseInt(document.getElementById("jour").value);
     const mois = parseInt(document.getElementById("mois").value) - 1;
     const annee = parseInt(document.getElementById("annee").value);
-    if (!jour || !mois || !annee) return;
+    if (!jour || mois < 0 || !annee) return;
     const today = new Date();
     const naissance = new Date(annee, mois, jour);
     let age = today.getFullYear() - naissance.getFullYear();
@@ -183,6 +236,7 @@ function calculerAge() {
     if (m < 0 || (m === 0 && today.getDate() < naissance.getDate())) age--;
     document.getElementById("age").value = age;
 }
+
 function autoNext(input, nextInputId, maxLength) {
     input.addEventListener('input', function() {
         if (this.value.length >= maxLength) {
@@ -191,40 +245,84 @@ function autoNext(input, nextInputId, maxLength) {
         calculerAge();
     });
 }
+
 autoNext(document.getElementById('jour'), 'mois', 2);
 autoNext(document.getElementById('mois'), 'annee', 2);
 document.getElementById('annee').addEventListener('input', calculerAge);
+
 document.getElementById('immatriculation').addEventListener('input', function() {
     this.value = this.value.toUpperCase();
 });
 
+// Gestion du champ "Autre" pour les pièces d'identité
+document.getElementById('autreCheck').addEventListener('change', function() {
+    const autreTexte = document.getElementById('autreTexte');
+    if (this.checked) {
+        autreTexte.disabled = false;
+        autreTexte.focus();
+    } else {
+        autreTexte.disabled = true;
+        autreTexte.value = '';
+        this.value = '';
+    }
+});
+
+document.getElementById('autreTexte').addEventListener('input', function() {
+    const autreCheck = document.getElementById('autreCheck');
+    if (this.value.trim()) {
+        autreCheck.value = 'Autre : ' + this.value.trim();
+    } else {
+        autreCheck.value = '';
+    }
+});
+
+function formatDateNaissance(jour, mois, annee) {
+    return `${jour.toString().padStart(2, '0')}/${mois.toString().padStart(2, '0')}/${annee}`;
+}
+
+function formatDateIntervention(dateStr) {
+    if (!dateStr) return '';
+    const [annee, mois, jour] = dateStr.split("-");
+    return `${jour}/${mois}/${annee}`;
+}
+
 document.getElementById('ficheForm').addEventListener('submit', function(e){
     e.preventDefault();
     const pieces = Array.from(document.querySelectorAll('input[name="piece"]:checked')).map(cb => cb.value);
+    
+    const jourVal = document.getElementById('jour').value;
+    const moisVal = document.getElementById('mois').value;
+    const anneeVal = document.getElementById('annee').value;
+    
     const fiche = {
+        categorie: document.getElementById('categorie').value,
         nom: document.getElementById('nom').value,
         prenom: document.getElementById('prenom').value,
         sexe: document.getElementById('sexe').value,
         nationalite: document.getElementById('nationalite').value,
-        jour: document.getElementById('jour').value,
-        mois: document.getElementById('mois').value,
-        annee: document.getElementById('annee').value,
+        jour: jourVal,
+        mois: moisVal,
+        annee: anneeVal,
+        dateNaissance: formatDateNaissance(jourVal, moisVal, anneeVal),
         age: document.getElementById('age').value,
-        villeDepart: document.getElementById('villeDepart').value,
+        heure: document.getElementById('heure').value,
+        dateIntervention: document.getElementById('dateIntervention').value,
+        lieuInterpellation: document.getElementById('lieuInterpellation').value,
+suitesDonnees: document.getElementById('suitesDonnees').value,
+ villeDepart: document.getElementById('villeDepart').value,
         paysDepart: document.getElementById('paysDepart').value,
         villeDestination: document.getElementById('villeDestination').value,
         paysDestination: document.getElementById('paysDestination').value,
-        heureDate: document.getElementById('heureDate').value,
-        lieuInterpellation: document.getElementById('lieuInterpellation').value,
         vehicule: document.getElementById('vehicule').value,
         immatriculation: document.getElementById('immatriculation').value,
         piecesIdentite: pieces
     };
+    
     const fiches = JSON.parse(localStorage.getItem('fichesESI') || '[]');
     fiches.push(fiche);
     localStorage.setItem('fichesESI', JSON.stringify(fiches));
     this.reset();
-    setHeureDate();
+    setCurrentDateTime();
     afficherHistorique();
 });
 
@@ -236,10 +334,12 @@ function afficherHistorique() {
         const ficheDiv = document.createElement('div');
         ficheDiv.className = 'fiche';
         ficheDiv.innerHTML = `
-            <strong>Fiche #${index+1}</strong><br>
-            Nom: ${fiche.nom} ${fiche.prenom} | Sexe: ${fiche.sexe} | Nationalité: ${fiche.nationalite} | Âge: ${fiche.age}<br>
-            Départ: ${fiche.villeDepart}, ${fiche.paysDepart} | Destination: ${fiche.villeDestination}, ${fiche.paysDestination}<br>
-            Heure et Date: ${fiche.heureDate} | Lieu: ${fiche.lieuInterpellation}<br>
+            <strong>Fiche #${index+1} ${fiche.categorie}</strong><br>
+            Nom: ${fiche.nom} ${fiche.prenom} | Sexe: ${fiche.sexe} | Nationalité: ${fiche.nationalite}<br>
+            Date de naissance: ${fiche.dateNaissance || 'Non renseignée'} | Âge: ${fiche.age} ans<br>
+           Intervention: ${fiche.heure || fiche.heureDate} le ${formatDateIntervention(fiche.dateIntervention)} 
+Lieu: ${fiche.lieuInterpellation} | Suites données: ${fiche.suitesDonnees || ''}<br>
+           Départ: ${fiche.villeDepart}, ${fiche.paysDepart} | Destination: ${fiche.villeDestination}, ${fiche.paysDestination}<br>
             Véhicule: ${fiche.vehicule} | Immatriculation: ${fiche.immatriculation}<br>
             Pièces d'identité: ${fiche.piecesIdentite.join(", ")}<br>
             <button onclick="modifierFiche(${index})">Modifier</button>
@@ -248,6 +348,7 @@ function afficherHistorique() {
         historiqueDiv.appendChild(ficheDiv);
     });
 }
+
 function supprimerFiche(index) {
     if (confirm("Voulez-vous vraiment supprimer cette fiche ?")) {
         const fiches = JSON.parse(localStorage.getItem('fichesESI') || '[]');
@@ -256,9 +357,11 @@ function supprimerFiche(index) {
         afficherHistorique();
     }
 }
+
 function modifierFiche(index) {
     const fiches = JSON.parse(localStorage.getItem('fichesESI') || '[]');
     const fiche = fiches[index];
+document.getElementById('categorie').value = fiche.categorie;
     document.getElementById('nom').value = fiche.nom;
     document.getElementById('prenom').value = fiche.prenom;
     document.getElementById('sexe').value = fiche.sexe;
@@ -271,18 +374,36 @@ function modifierFiche(index) {
     document.getElementById('paysDepart').value = fiche.paysDepart;
     document.getElementById('villeDestination').value = fiche.villeDestination;
     document.getElementById('paysDestination').value = fiche.paysDestination;
+    document.getElementById('heure').value = fiche.heure || '';
+    document.getElementById('dateIntervention').value = fiche.dateIntervention || '';
     document.getElementById('lieuInterpellation').value = fiche.lieuInterpellation;
+document.getElementById('suitesDonnees').value = fiche.suitesDonnees || '';
     document.getElementById('vehicule').value = fiche.vehicule;
     document.getElementById('immatriculation').value = fiche.immatriculation;
+    
+    // Réinitialiser toutes les cases à cocher
     document.querySelectorAll('input[name="piece"]').forEach(cb => cb.checked = false);
+    document.getElementById('autreTexte').value = '';
+    document.getElementById('autreTexte').disabled = true;
+    
+    // Cocher les pièces d'identité correspondantes
     fiche.piecesIdentite.forEach(val => {
-        const cb = Array.from(document.querySelectorAll('input[name="piece"]')).find(c => c.value === val);
-        if (cb) cb.checked = true;
+        if (val.startsWith('Autre : ')) {
+            document.getElementById('autreCheck').checked = true;
+            document.getElementById('autreTexte').disabled = false;
+            document.getElementById('autreTexte').value = val.replace('Autre : ', '');
+            document.getElementById('autreCheck').value = val;
+        } else {
+            const cb = Array.from(document.querySelectorAll('input[name="piece"]')).find(c => c.value === val);
+            if (cb) cb.checked = true;
+        }
     });
+    
     fiches.splice(index, 1);
     localStorage.setItem('fichesESI', JSON.stringify(fiches));
     afficherHistorique();
 }
+
 document.getElementById('effacerFiches').addEventListener('click', function() {
     if (confirm("Voulez-vous vraiment effacer toutes les fiches ?")) {
         localStorage.removeItem('fichesESI');
@@ -290,15 +411,12 @@ document.getElementById('effacerFiches').addEventListener('click', function() {
         alert("Toutes les fiches ont été effacées !");
     }
 });
+
 afficherHistorique();
 
-
 /* ---------- BLOC JS COMPLET POUR ESI+VISA (195 pays) ---------- */
-/* Utilisation : garde ta balise <select id="pays"> et les éléments d'UI existants.
-   Le script peuple le select, trie alphabétiquement et gère visaData.court / visaData.long. */
-
 (function(){
-  // 1) Liste d'environ 195 pays (UN members + micro-États utiles)
+  // 1) Liste d'environ 195 pays
   const allCountries = [
     "Afghanistan","Albanie","Algérie","Allemagne","Andorre","Angola","Antigua-et-Barbuda","Argentine","Arménie","Australie",
     "Autriche","Azerbaïdjan","Bahamas","Bahreïn","Bangladesh","Barbade","Biélorussie","Belgique","Belize","Bénin",
@@ -322,107 +440,200 @@ afficherHistorique();
     "Vatican","Venezuela","Vietnam","Yémen","Zambie","Zimbabwe","Kosovo"
   ];
 
-  // 2) Pays sans visa court ni long : UE (27) + EEE + Suisse + micro-États
+  // 2) Pays sans visa court ni long
   const neverNeed = [
-    // UE (francisé) - 27
     "Autriche","Belgique","Bulgarie","Chypre","République tchèque","Croatie","Danemark","Estonie","Finlande","France",
     "Allemagne","Grèce","Hongrie","Irlande","Italie","Lettonie","Lituanie","Luxembourg","Malte","Pays-Bas",
     "Pologne","Portugal","Roumanie","Slovaquie","Slovénie","Espagne","Suède",
-    // EEE + Suisse + micro-États
     "Islande","Liechtenstein","Norvège","Suisse","Monaco","Andorre","Saint-Marin","Vatican"
   ];
 
-  // 3) Pays exemptés de visa court séjour (Annex II / liste commune des Etats) -> véhicule "shortExempt"
-  // Source : règles communes Schengen / France-Visas (liste Annex II / ETIAS countries). C'est la règle générale (confirmer cas particuliers).
+  // 3) Pays exemptés de visa court séjour
   const shortExempt = [
-    // Europe non-UE (biométrique souvent requis)
     "Albanie","Bosnie-Herzégovine","Monténégro","Macédoine du Nord","Serbie","Moldavie","Ukraine","Géorgie",
-    // Amériques
     "Argentine","Bahamas","Barbade","Bolivie","Brésil","Canada","Chili","Colombie","Costa Rica",
     "Dominique","Équateur","El Salvador","Grenade","Guatemala","Guyana","Honduras","Jamaïque","Mexique",
     "Nicaragua","Panama","Paraguay","Pérou","Suriname","Trinité-et-Tobago","Uruguay","Venezuela",
-    // Asie-Pacifique & Moyen-Orient
     "Australie","Brunei","Japon","Malaisie","Nouvelle-Zélande","Singapour","Corée du Sud","Israël","Taïwan",
-    "Hong Kong","Macao","Timor-Leste","Émirats arabes unis",
-    // Océanie
-    "Kiribati","Îles Marshall","Micronésie","Nauru","Palaos","Samoa","Îles Salomon","Tonga","Tuvalu","Vanuatu",
-    // Afrique / Océan Indien (quelques exceptions)
-    "Île Maurice","Seychelles"
+    "Émirats arabes unis","Kiribati","Îles Marshall","Micronésie","Nauru","Palaos","Samoa","Îles Salomon","Tonga","Tuvalu","Vanuatu",
+    "Maurice","Seychelles"
   ];
-
-  // Normalisation : s'assurer que tous les noms présents dans neverNeed/shortExempt figurent dans allCountries
-  const missing = [];
-  [ ...neverNeed, ...shortExempt ].forEach(n => { if (!allCountries.includes(n)) missing.push(n); });
-  // (on ne stoppe pas, on assume que la majorité est cohérente)
 
   // 4) Construction de visaData
   const visaData = { court: {}, long: {} };
-
   allCountries.forEach(country => {
     if (neverNeed.includes(country)) {
-      visaData.court[country] = false; // pas de visa court
-      visaData.long[country] = false;  // pas de visa long
+      visaData.court[country] = false;
+      visaData.long[country] = false;
     } else if (shortExempt.includes(country)) {
-      visaData.court[country] = false; // pas de visa court
-      visaData.long[country] = true;   // mais visa long requis
+      visaData.court[country] = false;
+      visaData.long[country] = true;
     } else {
-      visaData.court[country] = true;  // visa requis pour court séjour
-      visaData.long[country] = true;   // visa requis pour long séjour
+      visaData.court[country] = true;
+      visaData.long[country] = true;
     }
   });
 
-  // 5) Optionnel : préciser les pays qui exigent passeport biométrique pour l'exemption court séjour
-  // (exemples : Serbie, Albanie, Bosnie, Macédoine du Nord, Moldavie, Ukraine, Géorgie)
+  // 5) Pays avec exemption biométrique
   const biometricExemptions = ["Albanie","Bosnie-Herzégovine","Macédoine du Nord","Monténégro","Serbie","Moldavie","Ukraine","Géorgie"];
 
-  // 6) Remplissage du select trié alphabétiquement
-  const selectPays = document.getElementById('pays');
-  if (!selectPays) {
-    console.warn("Element <select id='pays'> introuvable — crée-le dans ton HTML.");
-  } else {
-    // trier pays (respecter accents)
-    const sorted = allCountries.slice().sort((a,b)=> a.localeCompare(b,'fr',{ignorePunctuation:true}));
-    sorted.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p;
-      opt.textContent = p;
-      selectPays.appendChild(opt);
-    });
+  // 6) Système d'autocomplétion
+  let selectedCountry = '';
+  let currentSelection = -1;
+  const paysInput = document.getElementById('paysInput');
+  const paysDropdown = document.getElementById('paysDropdown');
+  
+  const sortedCountries = allCountries.slice().sort((a,b) => a.localeCompare(b, 'fr', {ignorePunctuation: true}));
+
+  function normalizeText(text) {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Supprime les accents
+      .replace(/[-\s]/g, ''); // Supprime tirets et espaces
   }
 
-  // 7) Fonction de vérification (réutilise ton HTML existant : input #duree doit valoir 'court' ou 'long')
-  window.verifierVisa = function() {
-    const pays = (document.getElementById('pays') || {}).value;
-    const duree = (document.getElementById('duree') || {}).value; // 'court' ou 'long'
-    const resultat = document.getElementById('resultat');
-    if (!resultat) {
-      alert("Element #resultat non trouvé. Assure-toi d'avoir un conteneur pour afficher le résultat.");
+  function filterCountries(searchTerm) {
+    const normalizedSearch = normalizeText(searchTerm);
+    return sortedCountries.filter(country => 
+      normalizeText(country).includes(normalizedSearch)
+    ).slice(0, 10);
+  }
+
+  function showDropdown(countries) {
+    paysDropdown.innerHTML = '';
+    if (countries.length === 0) {
+      paysDropdown.style.display = 'none';
       return;
     }
-    if (!pays) { resultat.textContent = "Veuillez sélectionner un pays."; return; }
-    if (!['court','long'].includes(duree)) { resultat.textContent = "Veuillez choisir une durée ('court' ou 'long')."; return; }
+    
+    countries.forEach((country, index) => {
+      const option = document.createElement('div');
+      option.className = 'pays-option';
+      option.textContent = country;
+      option.addEventListener('click', () => selectCountry(country));
+      paysDropdown.appendChild(option);
+    });
+    
+    paysDropdown.style.display = 'block';
+    currentSelection = -1;
+  }
 
+  function selectCountry(country) {
+    selectedCountry = country;
+    paysInput.value = country;
+    paysDropdown.style.display = 'none';
+    checkVisa(); // Vérification automatique
+  }
+
+  function hideDropdown() {
+    setTimeout(() => {
+      paysDropdown.style.display = 'none';
+    }, 200);
+  }
+
+  function updateSelection(direction) {
+    const options = paysDropdown.querySelectorAll('.pays-option');
+    if (options.length === 0) return;
+    
+    if (currentSelection >= 0) {
+      options[currentSelection].classList.remove('selected');
+    }
+    
+    currentSelection += direction;
+    if (currentSelection < 0) currentSelection = options.length - 1;
+    if (currentSelection >= options.length) currentSelection = 0;
+    
+    options[currentSelection].classList.add('selected');
+    options[currentSelection].scrollIntoView({ block: 'nearest' });
+  }
+
+  // Fonction de vérification automatique
+  function checkVisa() {
+    const pays = selectedCountry || paysInput.value.trim();
+    const duree = document.getElementById('duree').value;
+    const resultat = document.getElementById('resultat');
+    
+    if (!pays || !allCountries.includes(pays)) {
+      resultat.innerHTML = '';
+      return;
+    }
+    
     const needsVisa = visaData[duree][pays];
     let html = '';
+    
     if (needsVisa) {
-      html = `Visa requis pour ce séjour (${duree === 'court' ? 'court (<90j)' : 'long (>90j)'}). ` +
+      html = `<span style="color: #cc0000;">Visa requis</span> pour ce séjour (${duree === 'court' ? 'court (<90j)' : 'long (>90j)'}). ` +
              `Voir la procédure sur <a href="https://france-visas.gouv.fr/web/france-visas/assistant-visa" target="_blank" rel="noopener">France-Visas</a>.`;
     } else {
-      html = `Pas de visa requis pour ce séjour (${duree === 'court' ? 'court (<90j)' : 'long (>90j)'}). ` +
-             `Vérifier conditions particulières (type de passeport, ETIAS, accords bilatéraux) sur <a href="https://france-visas.gouv.fr/web/france-visas/assistant-visa" target="_blank" rel="noopener">France-Visas</a>.`;
+      html = `<span style="color: #008000;">Pas de visa requis</span> pour ce séjour (${duree === 'court' ? 'court (<90j)' : 'long (>90j)'}). ` +
+             `Vérifier conditions particulières sur <a href="https://france-visas.gouv.fr/web/france-visas/assistant-visa" target="_blank" rel="noopener">France-Visas</a>.`;
     }
 
-    // précision si exemption court dépend de passeport biométrique
     if (!needsVisa && duree === 'court' && biometricExemptions.includes(pays)) {
       html += ` <br><small>Note : l'exemption peut demander un passeport biométrique.</small>`;
     }
+    
     resultat.innerHTML = html;
-  };
+  }
 
-  // 8) Expose les données si tu veux les utiliser ailleurs (console.debug)
+  // Event listeners
+  paysInput.addEventListener('input', (e) => {
+    const searchTerm = e.target.value.trim();
+    selectedCountry = '';
+    
+    if (searchTerm.length === 0) {
+      paysDropdown.style.display = 'none';
+      document.getElementById('resultat').innerHTML = '';
+      return;
+    }
+    
+    const filtered = filterCountries(searchTerm);
+    showDropdown(filtered);
+  });
+
+  paysInput.addEventListener('keydown', (e) => {
+    const dropdown = paysDropdown;
+    const options = dropdown.querySelectorAll('.pays-option');
+    
+    if (dropdown.style.display === 'none' || options.length === 0) return;
+    
+    switch(e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        updateSelection(1);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        updateSelection(-1);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (currentSelection >= 0) {
+          selectCountry(options[currentSelection].textContent);
+        }
+        break;
+      case 'Escape':
+        paysDropdown.style.display = 'none';
+        break;
+    }
+  });
+
+  paysInput.addEventListener('blur', hideDropdown);
+  paysInput.addEventListener('focus', (e) => {
+    if (e.target.value.trim()) {
+      const filtered = filterCountries(e.target.value);
+      showDropdown(filtered);
+    }
+  });
+
+  // Event listener pour le changement de durée
+  document.getElementById('duree').addEventListener('change', checkVisa);
+
+  // Fonction globale pour rétrocompatibilité (au cas où)
+  window.verifierVisa = checkVisa;
+
   window._esiVisaData = { allCountries, neverNeed, shortExempt, visaData, biometricExemptions };
-
-  // debug log
   console.debug("ESI+Visa: visaData initialisé pour", allCountries.length, "pays. Voir window._esiVisaData.");
 })();
 
